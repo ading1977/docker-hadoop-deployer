@@ -4,9 +4,9 @@
 : ${HADOOP_DOCKER_IMAGE:=ading1977/hadoop:latest}
 : ${HADOOP_LOG_DIR:=/opt/hadoop/logs}
 : ${HADOOP_CONF_DIR:=/opt/hadoop/etc/hadoop}
-: ${HADOOP_SHARED_DIR:=/root/shared}
-: ${HADOOP_NAMENODE:=mdinglin02}
-: ${HADOOP_RESOURCEMANAGER:=mdinglin02}
+: ${HADOOP_DATA_DIR:=/var/lib/hadoop}
+: ${HADOOP_NAMENODE:=localhost}
+: ${HADOOP_RESOURCEMANAGER:=localhost}
 : ${HADOOP_DFS_REPLICATION:=1}
 
 docker_hadoop_error() {
@@ -61,7 +61,7 @@ docker_run() {
   docker run -d --name ${DAEMON} --net=host \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
-    -v ${HADOOP_SHARED_DIR}:${HADOOP_SHARED_DIR} \
+    -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     ${DOCKER_ENVS} \
     ${HADOOP_DOCKER_IMAGE} ${DAEMON}
 }
