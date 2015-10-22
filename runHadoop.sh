@@ -19,24 +19,28 @@ docker_hadoop_usage() {
 
 docker_hadoop_upgrade_image() {
   local IMAGE=${HADOOP_DOCKER_IMAGE}
-  local CID=$(docker ps | grep $IMAGE | grep $DAEMON | awk '{print $1}')
+  local CID=$(docker ps -a | grep $IMAGE | grep $DAEMON | awk '{print $1}')
 
   # Pull the latest image if available
   docker pull $IMAGE
 
-  # Is the container running
+  # Does the container exist
   if [ -z $CID ]; then
-    return 1
+    return 2
   fi
 
-  LATEST=`docker inspect --format "{{.Id}}" $IMAGE`
-  RUNNING=`docker inspect --format "{{.Image}}" $CID`
-  echo "Latest:" $LATEST
-  echo "Running:" $RUNNING
-  if [ "$RUNNING" != "$LATEST" ]; then
+  local RUNNING=$(docker inspect --format "{{.State.Running}}" $CID)
+  local CURRENT=`docker inspect --format "{{.Image}}" $CID`
+  local LATEST=`docker inspect --format "{{.Id}}" $IMAGE`
+  echo "Current image:" $CURRENT
+  echo "Latest image:" $LATEST
+  if [ "$CURRENT" != "$LATEST" ]; then
     echo "upgrading $DAEMON image"
-    docker stop $DAEMON
-    docker rm -f $DAEMON
+    docker stop $CID
+    docker rm -f $CID
+    return 2
+  elif [ ${RUNNING} = false ]; then
+    echo "$DAEMON is not running"
     return 1
   else
     echo "$DAEMON is running, and the image is up to date"
@@ -54,8 +58,13 @@ docker_hadoop_expand_env() {
 docker_run() {
 
   docker_hadoop_upgrade_image
-  if [ $? -eq 0 ]; then
+
+  local rval=$?
+  if [ $rval -eq 0 ]; then
     return 0
+  elif [ $rval -eq 1 ]; then
+    docker start ${DAEMON}
+    return $?
   fi
 
   docker run -d --name ${DAEMON} --net=host \
@@ -64,6 +73,8 @@ docker_run() {
     -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     ${DOCKER_ENVS} \
     ${HADOOP_DOCKER_IMAGE} ${DAEMON}
+  
+  return $?
 }
 
 if [[ $# = 0 ]]; then
