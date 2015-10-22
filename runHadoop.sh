@@ -1,13 +1,17 @@
 #!/bin/bash
 
-# The directory that stores customized Hadoop configuration files:wq
-: ${HADOOP_DOCKER_IMAGE:=ading1977/hadoop:latest}
-: ${HADOOP_LOG_DIR:=/opt/hadoop/logs}
-: ${HADOOP_CONF_DIR:=/opt/hadoop/etc/hadoop}
+# Customized hadoop configuration
+: ${CONF_NAMENODE:=localhost}
+: ${CONF_RESOURCEMANAGER:=localhost}
+: ${CONF_DFS_REPLICATION:=1}
+
+# Change with caution
+: ${HADOOP_DOCKER_IMAGE:=ading1977/hadoop}
+: ${HADOOP_DOCKER_IMAGE_TAG:=latest}
+: ${HADOOP_PREFIX:=/opt/hadoop}
+: ${HADOOP_LOG_DIR:=$HADOOP_PREFIX/logs}
+: ${HADOOP_CONF_DIR:=$HADOOP_PREFIX/etc/hadoop}
 : ${HADOOP_DATA_DIR:=/var/lib/hadoop}
-: ${HADOOP_NAMENODE:=localhost}
-: ${HADOOP_RESOURCEMANAGER:=localhost}
-: ${HADOOP_DFS_REPLICATION:=1}
 
 docker_hadoop_error() {
   echo "$*" 1>&2
@@ -18,7 +22,7 @@ docker_hadoop_usage() {
 }
 
 docker_hadoop_upgrade_image() {
-  local IMAGE=${HADOOP_DOCKER_IMAGE}
+  local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
   local CID=$(docker ps -a | grep $IMAGE | grep $DAEMON | awk '{print $1}')
 
   # Pull the latest image if available
@@ -36,8 +40,9 @@ docker_hadoop_upgrade_image() {
   echo "Latest image:" $LATEST
   if [ "$CURRENT" != "$LATEST" ]; then
     echo "upgrading $DAEMON image"
+    docker tag $CURRENT ${HADOOP_DOCKER_IMAGE}:$(date +"%F-%s")
     docker stop $CID
-    docker rm -f $CID
+    docker rm -f -v $CID
     return 2
   elif [ ${RUNNING} = false ]; then
     echo "$DAEMON is not running"
@@ -50,9 +55,33 @@ docker_hadoop_upgrade_image() {
 
 docker_hadoop_expand_env() {
   DOCKER_ENVS=""
-  for var in  ${!HADOOP_*}; do
+  for var in  ${!CONF_*}; do
     DOCKER_ENVS="${DOCKER_ENVS} -e $var=${!var}"
   done
+}
+
+docker_hadoop_create_data_volume() {
+  DATA_VOLUME_CONTAINER=hadoop_data_volume
+  local IMAGE=${HADOOP_DOCKER_IMAGE}
+  local DATA_IMAGE=${HADOOP_DOCKER_IMAGE}:data
+  local CID=$(docker ps -a | grep $DATA_IMAGE | awk '{print $1}')
+  if [ -z $CID ]; then
+    local IID=$(docker images | grep $IMAGE | awk '{print $3}')
+    if [ -z $IID ]; then
+      docker pull $IMAGE
+      IID=$(docker images | grep $IMAGE | awk '{print $3}')
+      if [ -z $IID ]; then
+        return 1
+      fi
+    fi
+    echo "Creating data volume container" 
+    docker tag $IID ${DATA_IMAGE}
+    docker create \
+      -v ${HADOOP_CONF_DIR} \
+      -v ${HADOOP_DATA_DIR} \
+      --name ${DATA_VOLUME_CONTAINER} \
+      ${DATA_IMAGE}
+  fi
 }
 
 docker_run() {
@@ -67,12 +96,12 @@ docker_run() {
     return $?
   fi
 
+  local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
   docker run -d --name ${DAEMON} --net=host \
+    --volumes-from ${DATA_VOLUME_CONTAINER} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
-    -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
-    -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     ${DOCKER_ENVS} \
-    ${HADOOP_DOCKER_IMAGE} ${DAEMON}
+    ${IMAGE} ${DAEMON}
   
   return $?
 }
@@ -82,8 +111,13 @@ if [[ $# = 0 ]]; then
   exit 1
 fi
 
-
 docker_hadoop_expand_env
+
+docker_hadoop_create_data_volume
+if [ $? -ne 0 ]; then
+  echo "Failed to create hadoop data volume container"
+  exit 1
+fi
 
 DAEMON=$1
 case ${DAEMON} in
