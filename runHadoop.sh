@@ -97,7 +97,7 @@ docker_run() {
   fi
 
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
-  docker run -d --name ${DAEMON} --net=host \
+  docker run -d --restart=always --name ${DAEMON} --net=host \
     --volumes-from ${DATA_VOLUME_CONTAINER} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
     ${DOCKER_ENVS} \
