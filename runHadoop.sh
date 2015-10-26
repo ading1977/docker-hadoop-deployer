@@ -60,30 +60,6 @@ docker_hadoop_expand_env() {
   done
 }
 
-docker_hadoop_create_data_volume() {
-  DATA_VOLUME_CONTAINER=hadoop_data_volume
-  local IMAGE=${HADOOP_DOCKER_IMAGE}
-  local DATA_IMAGE=${HADOOP_DOCKER_IMAGE}:data
-  local CID=$(docker ps -a | grep $DATA_IMAGE | awk '{print $1}')
-  if [ -z $CID ]; then
-    local IID=$(docker images | grep $IMAGE | awk '{print $3}')
-    if [ -z $IID ]; then
-      docker pull $IMAGE
-      IID=$(docker images | grep $IMAGE | awk '{print $3}')
-      if [ -z $IID ]; then
-        return 1
-      fi
-    fi
-    echo "Creating data volume container" 
-    docker tag $IID ${DATA_IMAGE}
-    docker create \
-      -v ${HADOOP_CONF_DIR} \
-      -v ${HADOOP_DATA_DIR} \
-      --name ${DATA_VOLUME_CONTAINER} \
-      ${DATA_IMAGE}
-  fi
-}
-
 docker_run() {
 
   docker_hadoop_upgrade_image
@@ -96,9 +72,14 @@ docker_run() {
     return $?
   fi
 
+  mkdir -p ${HADOOP_DATA_DIR}
+  mkdir -p ${HADOOP_CONF_DIR}
+  mkdir -p ${HADOOP_LOG_DIR}
+
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
   docker run -d --restart=always --name ${DAEMON} --net=host \
-    --volumes-from ${DATA_VOLUME_CONTAINER} \
+    -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
+    -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
     ${DOCKER_ENVS} \
     ${IMAGE} ${DAEMON}
@@ -112,12 +93,6 @@ if [[ $# = 0 ]]; then
 fi
 
 docker_hadoop_expand_env
-
-docker_hadoop_create_data_volume
-if [ $? -ne 0 ]; then
-  echo "Failed to create hadoop data volume container"
-  exit 1
-fi
 
 DAEMON=$1
 case ${DAEMON} in
