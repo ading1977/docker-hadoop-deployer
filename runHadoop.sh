@@ -30,7 +30,7 @@ docker_hadoop_upgrade_image() {
   local CURRENT_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
   # Does the container exist
   if [ -z $CONTAINER_ID ]; then
-    if [ "$CURRENT_IMAGE_ID" != "$OLD_IMAGE_ID" ]; then
+    if [ -n "$OLD_IMAGE_ID" ] && [ "$CURRENT_IMAGE_ID" != "$OLD_IMAGE_ID" ]; then
       docker tag $OLD_IMAGE_ID ${HADOOP_DOCKER_IMAGE}:$(date +"%F-%s")
     fi
     return 2
