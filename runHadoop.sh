@@ -23,28 +23,30 @@ docker_hadoop_usage() {
 
 docker_hadoop_upgrade_image() {
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
-  local CID=$(docker ps -a | grep $IMAGE | grep $DAEMON | awk '{print $1}')
-
+  local CONTAINER_ID=$(docker ps -a | grep $IMAGE | grep $DAEMON | awk '{print $1}')
+  local OLD_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
   # Pull the latest image if available
   docker pull $IMAGE
-
+  local CURRENT_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
   # Does the container exist
-  if [ -z $CID ]; then
+  if [ -z $CONTAINER_ID ]; then
+    if [ "$CURRENT_IMAGE_ID" != "$OLD_IMAGE_ID" ]; then
+      docker tag $OLD_IMAGE_ID ${HADOOP_DOCKER_IMAGE}:$(date +"%F-%s")
+    fi
     return 2
   fi
 
-  local RUNNING=$(docker inspect --format "{{.State.Running}}" $CID)
-  local CURRENT=`docker inspect --format "{{.Image}}" $CID`
-  local LATEST=`docker inspect --format "{{.Id}}" $IMAGE`
-  echo "Current image:" $CURRENT
-  echo "Latest image:" $LATEST
-  if [ "$CURRENT" != "$LATEST" ]; then
+  local IS_RUNNING=$(docker inspect --format "{{.State.Running}}" $CONTAINER_ID)
+  local LATEST_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
+  echo "Current image:" $CURRENT_IMAGE_ID
+  echo "Latest image:" $LATEST_IMAGE_ID
+  if [ "$CURRENT_IMAGE_ID" != "$LATEST_IMAGE_ID" ]; then
     echo "upgrading $DAEMON image"
-    docker tag $CURRENT ${HADOOP_DOCKER_IMAGE}:$(date +"%F-%s")
-    docker stop $CID
-    docker rm -f -v $CID
+    docker tag $CURRENT_IMAGE_ID ${HADOOP_DOCKER_IMAGE}:$(date +"%F-%s")
+    docker stop $CONTAINER_ID
+    docker rm -f -v $CONTAINER_ID
     return 2
-  elif [ ${RUNNING} = false ]; then
+  elif [ ${IS_RUNNING} = false ]; then
     echo "$DAEMON is not running"
     return 1
   else
