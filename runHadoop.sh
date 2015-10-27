@@ -24,10 +24,10 @@ docker_hadoop_usage() {
 docker_hadoop_upgrade_image() {
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
   local CONTAINER_ID=$(docker ps -a | grep $IMAGE | grep $DAEMON | awk '{print $1}')
-  local OLD_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
+  local OLD_IMAGE_ID=$(docker inspect --format "{{.Id}}" $IMAGE)
   # Pull the latest image if available
   docker pull $IMAGE
-  local CURRENT_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
+  local CURRENT_IMAGE_ID=$(docker inspect --format "{{.Id}}" $IMAGE)
   # Does the container exist
   if [ -z $CONTAINER_ID ]; then
     if [ -n "$OLD_IMAGE_ID" ] && [ "$CURRENT_IMAGE_ID" != "$OLD_IMAGE_ID" ]; then
@@ -36,6 +36,8 @@ docker_hadoop_upgrade_image() {
     return 2
   fi
 
+  # CONTAINER_ID is not null
+  CURRENT_IMAGE_ID=$(docker inspect --format "{{.Image}}" $CONTAINER_ID)
   local IS_RUNNING=$(docker inspect --format "{{.State.Running}}" $CONTAINER_ID)
   local LATEST_IMAGE_ID=`docker inspect --format "{{.Id}}" $IMAGE`
   echo "Current image:" $CURRENT_IMAGE_ID
@@ -62,7 +64,17 @@ docker_hadoop_expand_env() {
   done
 }
 
-docker_run() {
+docker_run_bash() {
+  local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
+  docker run -it --rm --name hadoop_shell --net=host \
+    -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
+    -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
+    -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
+    ${DOCKER_ENVS} \
+    ${IMAGE}
+}
+
+docker_run_daemon() {
 
   docker_hadoop_upgrade_image
 
@@ -84,34 +96,37 @@ docker_run() {
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
     ${DOCKER_ENVS} \
-    ${IMAGE} ${DAEMON}
+    ${IMAGE} $DAEMON
   
   return $?
 }
 
-if [[ $# = 0 ]]; then
-  docker_hadoop_usage
-  exit 1
-fi
-
 docker_hadoop_expand_env
+
+if [[ $# = 0 ]]; then
+  docker_run_bash
+  exit 0
+fi
 
 DAEMON=$1
 case ${DAEMON} in
   namenode)
-    docker_run namenode
+    docker_run_daemon namenode
   ;;
   datanode)
-    docker_run datanode
+    docker_run_daemon datanode
   ;;
   resourcemanager)
-    docker_run resourcemanager
+    docker_run_daemon resourcemanager
   ;;
   nodemanager)
-    docker_run nodemanager
+    docker_run_daemon nodemanager
+  ;;
+  help)
+    docker_hadoop_usage
+    exit 0
   ;;
   *)
-    docker_hadoop_usage
-    exit 1
+    docker_run_bash
   ;;
 esac
