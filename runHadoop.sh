@@ -12,6 +12,7 @@
 : ${HADOOP_LOG_DIR:=$HADOOP_PREFIX/logs}
 : ${HADOOP_CONF_DIR:=$HADOOP_PREFIX/etc/hadoop}
 : ${HADOOP_DATA_DIR:=/var/lib/hadoop}
+: ${ZOOKEEPER_DATA_DIR:=/var/lib/zookeeper}
 
 docker_hadoop_error() {
   echo "$*" 1>&2
@@ -70,6 +71,7 @@ docker_run_bash() {
     -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
+    -v ${ZOOKEEPER_DATA_DIR}:${ZOOKEEPER_DATA_DIR} \
     ${DOCKER_ENVS} \
     ${IMAGE}
 }
@@ -95,6 +97,7 @@ docker_run_daemon() {
     -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
+    -v ${ZOOKEEPER_DATA_DIR}:${ZOOKEEPER_DATA_DIR} \
     ${DOCKER_ENVS} \
     ${IMAGE} $DAEMON
   
@@ -121,6 +124,9 @@ case ${DAEMON} in
   ;;
   nodemanager)
     docker_run_daemon nodemanager
+  ;;
+  zookeeper)
+    docker_run_daemon zookeeper
   ;;
   help)
     docker_hadoop_usage
