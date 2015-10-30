@@ -67,7 +67,7 @@ docker_hadoop_expand_env() {
 
 docker_run_bash() {
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
-  docker run -it --rm --name hadoop_shell --net=host \
+  docker run -it --rm --net=host \
     -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
@@ -77,6 +77,8 @@ docker_run_bash() {
 }
 
 docker_run_daemon() {
+
+  DAEMON=$1
 
   docker_hadoop_upgrade_image
 
@@ -111,8 +113,8 @@ if [[ $# = 0 ]]; then
   exit 0
 fi
 
-DAEMON=$1
-case ${DAEMON} in
+SERVICE=$1
+case ${SERVICE} in
   namenode)
     docker_run_daemon namenode
   ;;
@@ -121,6 +123,7 @@ case ${DAEMON} in
   ;;
   resourcemanager)
     docker_run_daemon resourcemanager
+    docker_run_daemon proxyserver
   ;;
   nodemanager)
     docker_run_daemon nodemanager
