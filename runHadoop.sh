@@ -10,7 +10,7 @@
 
 # Change with caution
 : ${HADOOP_DOCKER_IMAGE:=ading1977/hadoop}
-: ${HADOOP_DOCKER_IMAGE_TAG:=latest}
+: ${HADOOP_DOCKER_IMAGE_TAG:=2.8.0}
 : ${HADOOP_PREFIX:=/opt/hadoop}
 : ${HADOOP_LOG_DIR:=$HADOOP_PREFIX/logs}
 : ${HADOOP_CONF_DIR:=$HADOOP_PREFIX/etc/hadoop}
