@@ -99,7 +99,7 @@ docker_run_daemon() {
   mkdir -p ${HADOOP_LOG_DIR}
 
   local IMAGE=${HADOOP_DOCKER_IMAGE}:${HADOOP_DOCKER_IMAGE_TAG}
-  docker run -d --restart=always --name ${DAEMON} --net=host \
+  docker run -d -privileged=true --restart=always --name ${DAEMON} --net=host \
     -v ${HADOOP_DATA_DIR}:${HADOOP_DATA_DIR} \
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
