@@ -9,6 +9,7 @@
 : ${CONF_TIMELINESERVER:=$CONF_RESOURCEMANAGER}
 
 # Change with caution
+: ${DOCKER_BIN_DIR:=/rootfs/usr/bin}
 : ${HADOOP_DOCKER_IMAGE:=ading1977/hadoop}
 : ${HADOOP_DOCKER_IMAGE_TAG:=2.8.0}
 : ${HADOOP_PREFIX:=/opt/hadoop}
@@ -62,7 +63,7 @@ docker_hadoop_upgrade_image() {
 }
 
 docker_hadoop_expand_env() {
-  DOCKER_ENVS=""
+  DOCKER_ENVS="-e DOCKER_BIN_DIR=$DOCKER_BIN_DIR"
   for var in  ${!CONF_*}; do
     DOCKER_ENVS="${DOCKER_ENVS} -e $var=${!var}"
   done
@@ -103,6 +104,8 @@ docker_run_daemon() {
     -v ${HADOOP_CONF_DIR}:${HADOOP_CONF_DIR} \
     -v ${HADOOP_LOG_DIR}:${HADOOP_LOG_DIR} \
     -v ${ZK_DATA_DIR}:${ZK_DATA_DIR} \
+    -v /:/rootfs:ro -v /sys:/sys:ro -v /dev:/dev \
+    -v /var/lib/docker/:/var/lib/docker:rw -v /var/run:/var/run:rw \
     ${DOCKER_ENVS} \
     ${IMAGE} $DAEMON
   
